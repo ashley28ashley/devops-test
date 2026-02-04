@@ -1,0 +1,185 @@
+"""
+Script de collecte d'événements culturels
+Source: API OpenAgenda via data.gouv.fr
+"""
+
+import requests
+import json
+import time
+from datetime import datetime
+import hashlib
+from typing import List, Dict, Optional
+
+class EventCollector:
+    """Collecteur d'événements culturels"""
+    
+    def __init__(self):
+        # URL de base pour OpenAgenda (API publique)
+        self.base_url = "https://openagenda.com/agendas/77918851/events.json"
+        self.events = []
+        
+    def generate_hash(self, data: dict) -> str:
+        """Génère un hash unique pour éviter les doublons"""
+        data_str = json.dumps(data, sort_keys=True)
+        return hashlib.md5(data_str.encode()).hexdigest()
+    
+    def fetch_events(self, max_events: int = 300) -> List[Dict]:
+        """
+        Récupère les événements depuis l'API
+        
+        Args:
+            max_events: Nombre minimum d'événements à collecter
+            
+        Returns:
+            Liste des événements collectés
+        """
+        print(f"🎭 Début de la collecte d'événements...")
+        print(f"📊 Objectif: {max_events} événements minimum\n")
+        
+        collected = 0
+        page = 1
+        errors = 0
+        
+        while collected < max_events:
+            try:
+                print(f"📄 Page {page}...", end=" ")
+                
+                # Paramètres de pagination
+                params = {
+                    "size": 50,  # Nombre d'événements par page
+                    "page": page
+                }
+                
+                # Requête avec timeout
+                response = requests.get(
+                    self.base_url,
+                    params=params,
+                    timeout=10
+                )
+                
+                # Vérification du statut
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                # Extraction des événements
+                events = data.get("events", [])
+                
+                if not events:
+                    print("❌ Plus d'événements disponibles")
+                    break
+                
+                # Traitement de chaque événement
+                for event in events:
+                    # Structure normalisée avec métadonnées
+                    event_document = {
+                        "source": "openagenda",
+                        "fetched_at": datetime.utcnow().isoformat() + "Z",
+                        "raw_hash": self.generate_hash(event),
+                        "payload": event  # Donnée brute complète
+                    }
+                    
+                    self.events.append(event_document)
+                    collected += 1
+                
+                print(f"✅ {len(events)} événements collectés (Total: {collected})")
+                
+                # Respect de l'API (rate limiting)
+                time.sleep(0.5)
+                page += 1
+                
+            except requests.exceptions.Timeout:
+                print(f"⏱️ Timeout sur la page {page}")
+                errors += 1
+                if errors > 3:
+                    print("❌ Trop d'erreurs, arrêt de la collecte")
+                    break
+                    
+            except requests.exceptions.HTTPError as e:
+                print(f"❌ Erreur HTTP: {e}")
+                break
+                
+            except Exception as e:
+                print(f"❌ Erreur inattendue: {e}")
+                errors += 1
+                if errors > 3:
+                    break
+        
+        print(f"\n✨ Collecte terminée: {collected} événements")
+        print(f"⚠️ Erreurs rencontrées: {errors}")
+        
+        return self.events
+    
+    def fetch_from_multiple_sources(self) -> List[Dict]:
+        """
+        Collecte depuis plusieurs sources pour atteindre 300+ événements
+        Alternative si une seule source ne suffit pas
+        """
+        print("🔄 Collecte depuis sources multiples...\n")
+        
+        # Source 1: OpenAgenda
+        self.fetch_events(max_events=150)
+        
+        # Source 2: On pourrait ajouter Paris Open Data, etc.
+        # self.fetch_paris_events()
+        
+        return self.events
+    
+    def save_to_json(self, filename: str = "events_raw.json"):
+        """Sauvegarde les événements dans un fichier JSON"""
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(self.events, f, ensure_ascii=False, indent=2)
+        print(f"💾 Données sauvegardées dans {filename}")
+    
+    def get_summary(self) -> Dict:
+        """Retourne un résumé de la collecte"""
+        if not self.events:
+            return {"total": 0}
+        
+        return {
+            "total_events": len(self.events),
+            "sources": list(set(e["source"] for e in self.events)),
+            "date_range": {
+                "first_fetch": min(e["fetched_at"] for e in self.events),
+                "last_fetch": max(e["fetched_at"] for e in self.events)
+            }
+        }
+
+
+def main():
+    """Point d'entrée principal"""
+    print("=" * 60)
+    print("🎪 COLLECTEUR D'ÉVÉNEMENTS CULTURELS")
+    print("=" * 60 + "\n")
+    
+    # Initialisation
+    collector = EventCollector()
+    
+    # Collecte
+    events = collector.fetch_events(max_events=300)
+    
+    # Vérification
+    if len(events) < 300:
+        print(f"\n⚠️ Seulement {len(events)} événements collectés")
+        print("💡 Essai avec sources multiples...")
+        # On pourrait ajouter d'autres sources ici
+    
+    # Sauvegarde
+    if events:
+        collector.save_to_json()
+        
+        # Résumé
+        print("\n" + "=" * 60)
+        print("📊 RÉSUMÉ DE LA COLLECTE")
+        print("=" * 60)
+        summary = collector.get_summary()
+        print(f"Total: {summary['total_events']} événements")
+        print(f"Sources: {', '.join(summary['sources'])}")
+    else:
+        print("\n❌ Aucun événement collecté")
+    
+    print("\n✅ Script terminé")
+
+
+if __name__ == "__main__":
+    main()

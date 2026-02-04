@@ -1,0 +1,415 @@
+# 🎭 Cultural Events Pipeline
+
+**Projet Data Full-Stack : Analyse des événements culturels**
+
+Pipeline complet RAW → ENRICHED → SQL → DASHBOARD pour analyser l'attractivité territoriale via les événements culturels.
+
+---
+
+## 📋 Table des matières
+
+- [Vue d'ensemble](#vue-densemble)
+- [Architecture](#architecture)
+- [Technologies](#technologies)
+- [Installation](#installation)
+- [Utilisation](#utilisation)
+- [Tests](#tests)
+- [Choix techniques](#choix-techniques)
+- [Limites](#limites)
+
+---
+
+## 🎯 Vue d'ensemble
+
+Ce projet répond à la problématique suivante :
+
+> **Comment analyser l'offre culturelle d'un territoire pour comprendre les types d'événements, leur localisation et les périodes actives ?**
+
+### Données collectées
+- **Source** : Paris Open Data (data.gouv.fr)
+- **Volume** : 300+ événements culturels
+- **Types** : Concerts, théâtre, expositions, festivals, etc.
+
+### Fonctionnalités
+- 📊 Dashboard interactif avec filtres
+- 🗺️ Géolocalisation des événements
+- 📈 Statistiques en temps réel
+- 🔍 Recherche avancée
+
+---
+
+## 🏗️ Architecture
+
+```
+Internet API
+    ↓
+MongoDB (RAW)           ← Données brutes intactes
+    ↓
+Enrichissement          ← Géocodage + Catégorisation
+    ↓
+MongoDB (ENRICHED)      ← Données transformées
+    ↓
+ETL
+    ↓
+PostgreSQL              ← Base relationnelle optimisée
+    ↓
+FastAPI                 ← API REST
+    ↓
+React Dashboard         ← Interface utilisateur
+```
+
+### Séparation des responsabilités
+
+| Étape | Responsabilité | Technologie |
+|-------|---------------|-------------|
+| Collecte | Récupération données | Python + Requests |
+| Stockage RAW | Préservation intégrale | MongoDB |
+| Enrichissement | Transformation métier | Python + APIs |
+| SQL | Exploitation performante | PostgreSQL |
+| API | Exposition des données | FastAPI |
+| Frontend | Visualisation | React + TypeScript |
+
+---
+
+## 💻 Technologies
+
+### Backend
+- **Python 3.11+** : Langage principal
+- **FastAPI** : API REST moderne et performante
+- **SQLAlchemy** : ORM pour PostgreSQL
+- **PyMongo** : Client MongoDB officiel
+- **Pydantic** : Validation de données
+
+### Frontend
+- **React 18** : Library UI
+- **TypeScript** : Typage statique
+- **Tailwind CSS** : Framework CSS utility-first
+- **Recharts** : Bibliothèque de graphiques
+
+### Bases de données
+- **MongoDB 6+** : Stockage NoSQL (RAW + Enriched)
+- **PostgreSQL 15+** : Base relationnelle (exploitation)
+
+### Tests
+- **pytest** : Tests unitaires et d'intégration
+- **Jest** : Tests frontend
+- **httpx** : Tests API asynchrones
+
+---
+
+## 🚀 Installation
+
+### Prérequis
+
+```bash
+# Vérifier les versions
+python --version  # 3.9+
+node --version    # 16+
+```
+
+### Étape 1 : Cloner le projet
+
+```bash
+git clone <votre-repo>
+cd cultural-events-pipeline
+```
+
+### Étape 2 : Installer les dépendances Python
+
+```bash
+# Créer un environnement virtuel
+python -m venv venv
+
+# Activer l'environnement
+source venv/bin/activate  # Mac/Linux
+venv\Scripts\activate     # Windows
+
+# Installer les dépendances
+pip install -r requirements.txt
+```
+
+### Étape 3 : Configurer les bases de données
+
+#### MongoDB (via Docker - recommandé)
+```bash
+docker run -d -p 27017:27017 --name mongodb mongo:6
+```
+
+#### PostgreSQL (via Docker - recommandé)
+```bash
+docker run -d -p 5432:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=cultural_events \
+  --name postgres postgres:15
+```
+
+#### Ou installation locale
+- MongoDB : https://www.mongodb.com/docs/manual/installation/
+- PostgreSQL : https://www.postgresql.org/download/
+
+### Étape 4 : Configuration
+
+```bash
+# Copier le fichier d'environnement
+cp .env.example .env
+
+# Éditer les variables si nécessaire
+nano .env
+```
+
+### Étape 5 : Initialiser les bases
+
+```bash
+python scripts/init_db.py
+```
+
+---
+
+## 📖 Utilisation
+
+### Pipeline complet
+
+```bash
+# Lancer tout le pipeline (collecte → enrichissement → ETL)
+python scripts/run_pipeline.py
+```
+
+### Étape par étape
+
+#### 1. Collecter les données
+```bash
+python collect_events_paris.py
+# Génère: events_raw.json (300+ événements)
+```
+
+#### 2. Stocker dans MongoDB RAW
+```bash
+python storage/raw_repository.py
+# Insère dans: events_raw collection
+```
+
+#### 3. Enrichir les données
+```bash
+python enrichment/enrichment_pipeline.py
+# Crée: events_enriched collection
+```
+
+#### 4. ETL vers PostgreSQL
+```bash
+python etl/loader.py
+# Remplit: tables events, categories, cities
+```
+
+#### 5. Lancer l'API
+```bash
+cd api
+uvicorn main:app --reload
+
+# API disponible sur: http://localhost:8000
+# Documentation: http://localhost:8000/docs
+```
+
+#### 6. Lancer le Dashboard
+```bash
+cd frontend
+npm install
+npm start
+
+# Dashboard disponible sur: http://localhost:3000
+```
+
+---
+
+## 🧪 Tests
+
+### Tests unitaires
+```bash
+pytest tests/test_collectors.py
+pytest tests/test_enrichment.py
+pytest tests/test_etl.py
+```
+
+### Tests d'intégration
+```bash
+pytest tests/integration/
+```
+
+### Tests API
+```bash
+pytest tests/test_api.py
+```
+
+### Tous les tests
+```bash
+pytest tests/ -v --cov
+```
+
+---
+
+## 🎨 API Endpoints
+
+### Événements
+- `GET /events` - Liste paginée avec filtres
+- `GET /events/{id}` - Détail d'un événement
+- `GET /events/search` - Recherche textuelle
+
+### Statistiques
+- `GET /stats` - Statistiques globales
+- `GET /stats/by-category` - Répartition par catégorie
+- `GET /stats/by-city` - Top villes
+- `GET /stats/by-month` - Distribution temporelle
+
+### Exemple de requête
+```bash
+curl "http://localhost:8000/events?city=Paris&category=Musique&page=1&page_size=20"
+```
+
+---
+
+## 🎯 Choix techniques
+
+### Pourquoi MongoDB pour le RAW ?
+- ✅ Flexibilité du schéma (JSON natif)
+- ✅ Pas de transformation nécessaire
+- ✅ Historisation facile
+- ✅ Performance en écriture
+
+### Pourquoi PostgreSQL pour l'exploitation ?
+- ✅ Jointures efficaces
+- ✅ Index performants
+- ✅ Intégrité référentielle
+- ✅ Requêtes complexes optimisées
+
+### Pourquoi FastAPI ?
+- ✅ Performance élevée (async)
+- ✅ Documentation auto (Swagger)
+- ✅ Validation automatique (Pydantic)
+- ✅ Très demandé sur le marché
+
+### Pourquoi React + TypeScript ?
+- ✅ Écosystème mature
+- ✅ Typage fort (moins d'erreurs)
+- ✅ Réutilisabilité des composants
+- ✅ Standard de l'industrie
+
+---
+
+## 🎭 Dashboard - Fonctionnalités
+
+### Page : Liste des événements
+- ✅ Tableau paginé
+- ✅ 4+ filtres (ville, catégorie, date, prix)
+- ✅ Tri par colonnes
+- ✅ Chargement progressif
+
+### Page : Détail
+- ✅ Informations complètes
+- ✅ Carte interactive (Leaflet/Mapbox)
+- ✅ Événements similaires
+
+### Page : Statistiques
+- ✅ KPIs (nombre total, villes, catégories)
+- ✅ Graphique camembert (catégories)
+- ✅ Graphique ligne (temporel)
+- ✅ Graphique barres (top villes)
+- ✅ Carte avec tous les événements
+
+---
+
+## ⚠️ Limites du projet
+
+### Données
+- Limité aux événements de Paris (extensible à d'autres villes)
+- Dépend de la disponibilité de l'API
+- Données statiques (pas de mise à jour en temps réel)
+
+### Technique
+- Pas de cache Redis implémenté
+- Pas de gestion d'utilisateurs / authentification
+- Géocodage simple (pourrait être amélioré avec Google Maps API)
+- Pas de déploiement cloud configuré
+
+### Évolutions possibles
+- 🚀 Ajouter plus de sources (Lyon, Toulouse, Marseille)
+- 🚀 Implémenter un système de recommandations
+- 🚀 Ajouter une API GraphQL
+- 🚀 Containeriser avec Docker Compose
+- 🚀 CI/CD avec GitHub Actions
+- 🚀 Déploiement sur AWS/GCP/Azure
+
+---
+
+## 📊 Schéma de base de données
+
+### MongoDB
+
+#### Collection: events_raw
+```javascript
+{
+  _id: ObjectId,
+  source: String,
+  fetched_at: ISODate,
+  raw_hash: String,
+  payload: Object // Donnée brute complète
+}
+```
+
+#### Collection: events_enriched
+```javascript
+{
+  _id: ObjectId,
+  raw_id: ObjectId,
+  status: String, // "success", "failed", "pending"
+  enriched_at: ISODate,
+  data: {
+    latitude: Number,
+    longitude: Number,
+    main_category: String,
+    season: String,
+    is_free: Boolean
+  },
+  error: Object
+}
+```
+
+### PostgreSQL
+
+```sql
+-- Voir sql/schema.sql pour le schéma complet
+```
+
+---
+
+## 👨‍💻 Auteur
+
+**Votre Nom**
+- Projet Bac+4 Développement
+- Stack: Python, FastAPI, React, MongoDB, PostgreSQL
+
+---
+
+## 📝 Licence
+
+Ce projet est un projet éducatif réalisé dans le cadre d'une formation.
+
+---
+
+## 🙏 Remerciements
+
+- **Data.gouv.fr** pour les données ouvertes
+- **Paris Open Data** pour l'API événements
+- **Anthropic** pour l'assistance technique
+
+---
+
+## 📞 Support
+
+Pour toute question :
+1. Consultez la documentation dans `/docs`
+2. Vérifiez les issues GitHub
+3. Contactez le responsable du projet
+
+---
+
+**🎉 Bon développement !**

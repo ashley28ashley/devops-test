@@ -1,0 +1,324 @@
+# 🏗️ Architecture du Projet
+
+## 📁 Structure des dossiers
+
+```
+cultural-events-pipeline/
+│
+├── 📂 collectors/              # Étape 1 : Collecte
+│   ├── __init__.py
+│   ├── paris_collector.py     # Collecteur Paris
+│   ├── lyon_collector.py      # (Optionnel) Collecteur Lyon
+│   └── base_collector.py      # Classe de base
+│
+├── 📂 storage/                 # Étape 2 : Stockage MongoDB
+│   ├── __init__.py
+│   ├── mongodb_client.py      # Connexion MongoDB
+│   └── raw_repository.py      # Insertion dans collection RAW
+│
+├── 📂 enrichment/              # Étape 3 : Enrichissement
+│   ├── __init__.py
+│   ├── geocoding.py           # Enrichissement géocodage
+│   ├── categorization.py      # Enrichissement catégories
+│   ├── date_processor.py      # Enrichissement dates
+│   └── enrichment_pipeline.py # Pipeline d'enrichissement
+│
+├── 📂 etl/                     # Étape 4 : ETL MongoDB → SQL
+│   ├── __init__.py
+│   ├── sql_schema.py          # Schéma SQL
+│   ├── transformer.py         # Transformation des données
+│   └── loader.py              # Chargement dans PostgreSQL
+│
+├── 📂 api/                     # Étape 5 : API Backend
+│   ├── __init__.py
+│   ├── main.py                # Point d'entrée FastAPI
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── events.py          # Routes /events
+│   │   └── stats.py           # Routes /stats
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── schemas.py         # Pydantic schemas
+│   └── database.py            # Connexion PostgreSQL
+│
+├── 📂 frontend/                # Étape 6 : Dashboard
+│   ├── public/
+│   ├── src/
+│   │   ├── components/        # Composants React
+│   │   │   ├── EventList.tsx
+│   │   │   ├── EventDetail.tsx
+│   │   │   ├── Stats.tsx
+│   │   │   └── Filters.tsx
+│   │   ├── pages/
+│   │   ├── services/          # Appels API
+│   │   └── App.tsx
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── 📂 tests/                   # Étape 7 : Tests
+│   ├── __init__.py
+│   ├── test_collectors.py     # Tests unitaires collecte
+│   ├── test_enrichment.py     # Tests enrichissement
+│   ├── test_etl.py            # Tests ETL
+│   ├── test_api.py            # Tests API
+│   └── integration/           # Tests d'intégration
+│       └── test_full_pipeline.py
+│
+├── 📂 scripts/                 # Scripts utilitaires
+│   ├── init_db.py             # Initialisation des BDD
+│   ├── run_pipeline.py        # Lancer le pipeline complet
+│   └── reset_data.py          # Réinitialisation
+│
+├── 📂 sql/                     # Fichiers SQL
+│   ├── schema.sql             # Création des tables
+│   └── indexes.sql            # Création des index
+│
+├── 📄 .env.example            # Variables d'environnement
+├── 📄 .gitignore
+├── 📄 requirements.txt        # Dépendances Python
+├── 📄 README.md               # Documentation principale
+└── 📄 docker-compose.yml      # (Optionnel) Docker
+```
+
+---
+
+## 🔄 Flux de données
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        1. COLLECTE                              │
+│  Internet → collect_events_paris.py → events_raw.json           │
+└────────────────────────┬────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    2. STOCKAGE RAW                              │
+│  events_raw.json → MongoDB (collection: events_raw)             │
+│  Structure: {source, fetched_at, raw_hash, payload}            │
+└────────────────────────┬────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    3. ENRICHISSEMENT                            │
+│  MongoDB RAW → Enrichment Pipeline → MongoDB (events_enriched) │
+│  • Géocodage (adresse → lat/lon)                               │
+│  • Catégorisation (ML ou règles)                               │
+│  • Parsing dates (saison, jour semaine)                        │
+│  Structure: {raw_id, status, enriched_at, data}                │
+└────────────────────────┬────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    4. ETL → SQL                                 │
+│  MongoDB enriched → Transformer → PostgreSQL                    │
+│  Tables: events, categories, event_categories, cities          │
+└────────────────────────┬────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    5. API BACKEND                               │
+│  PostgreSQL ← FastAPI → Endpoints REST                          │
+│  GET /events, GET /events/{id}, GET /stats                     │
+└────────────────────────┬────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    6. DASHBOARD                                 │
+│  React + TypeScript → Fetch API → Affichage                    │
+│  Pages: Liste, Détail, Statistiques                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🗄️ Bases de données
+
+### MongoDB (NoSQL)
+**2 collections :**
+
+1. **events_raw** (lecture seule après insertion)
+   ```javascript
+   {
+     _id: ObjectId("..."),
+     source: "paris_open_data",
+     fetched_at: ISODate("2025-01-29T10:30:00Z"),
+     raw_hash: "abc123...",
+     payload: { /* données brutes */ }
+   }
+   ```
+
+2. **events_enriched** (modifiable)
+   ```javascript
+   {
+     _id: ObjectId("..."),
+     raw_id: ObjectId("..."),
+     status: "success", // pending, success, failed
+     enriched_at: ISODate("2025-01-29T11:00:00Z"),
+     data: {
+       latitude: 48.8566,
+       longitude: 2.3522,
+       main_category: "Musique",
+       season: "Hiver",
+       is_free: false
+     },
+     error: null // ou {code, message} si failed
+   }
+   ```
+
+### PostgreSQL (SQL)
+**4 tables principales :**
+
+1. **events**
+   - id, name, description, city, address
+   - latitude, longitude, event_date
+   - organizer, price, website
+
+2. **categories**
+   - id, name (unique)
+
+3. **event_categories**
+   - event_id, category_id (liaison many-to-many)
+
+4. **cities**
+   - id, name, department, event_count
+
+---
+
+## 🔌 Ports utilisés
+
+| Service    | Port  | URL                    |
+|------------|-------|------------------------|
+| MongoDB    | 27017 | mongodb://localhost    |
+| PostgreSQL | 5432  | postgresql://localhost |
+| API        | 8000  | http://localhost:8000  |
+| Frontend   | 3000  | http://localhost:3000  |
+
+---
+
+## 🚀 Ordre d'exécution
+
+### 1️⃣ Setup initial
+```bash
+# Installer les dépendances
+pip install -r requirements.txt
+
+# Initialiser les bases de données
+python scripts/init_db.py
+```
+
+### 2️⃣ Pipeline complet
+```bash
+# Option A : Tout en une fois
+python scripts/run_pipeline.py
+
+# Option B : Étape par étape
+python collectors/paris_collector.py    # Collecte
+python storage/raw_repository.py        # Stockage RAW
+python enrichment/enrichment_pipeline.py # Enrichissement
+python etl/loader.py                     # ETL → SQL
+```
+
+### 3️⃣ Lancer l'API
+```bash
+cd api
+uvicorn main:app --reload
+```
+
+### 4️⃣ Lancer le frontend
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### 5️⃣ Tests
+```bash
+pytest tests/
+```
+
+---
+
+## 📦 Technologies détaillées
+
+### Backend
+- **Python 3.11+** : Langage principal
+- **FastAPI** : Framework API moderne
+- **Pydantic** : Validation de données
+- **SQLAlchemy** : ORM pour PostgreSQL
+- **PyMongo** : Client MongoDB
+- **Requests** : HTTP client
+
+### Frontend
+- **React 18** : Library UI
+- **TypeScript** : Typage statique
+- **Tailwind CSS** : Styling
+- **Recharts** : Graphiques
+- **Axios** : HTTP client
+
+### Bases de données
+- **MongoDB 6+** : NoSQL (RAW + Enriched)
+- **PostgreSQL 15+** : SQL (données exploitables)
+
+### Tests
+- **pytest** : Framework de tests Python
+- **Jest** : Framework de tests JavaScript
+- **httpx** : Tests API asynchrones
+
+---
+
+## 🔐 Variables d'environnement
+
+Créer un fichier `.env` :
+
+```env
+# MongoDB
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DATABASE=cultural_events
+
+# PostgreSQL
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DATABASE=cultural_events
+
+# API
+API_HOST=0.0.0.0
+API_PORT=8000
+API_RELOAD=True
+
+# Geocoding API
+GEOCODING_API_KEY=optional_if_needed
+```
+
+---
+
+## 📊 Métriques de succès
+
+### Données
+- ✅ 300+ événements collectés
+- ✅ Taux d'enrichissement > 90%
+- ✅ Aucun doublon dans SQL
+
+### Performance
+- ✅ API : réponse < 200ms
+- ✅ Pagination efficace
+- ✅ Index sur colonnes critiques
+
+### Qualité
+- ✅ Couverture de tests > 70%
+- ✅ Pas d'erreurs critiques
+- ✅ Code documenté
+
+---
+
+## 🎯 Prochaines étapes
+
+Vous avez compris l'architecture ? 
+
+**Je vous propose de créer maintenant :**
+
+1. ✅ **ÉTAPE 1** : Scripts de collecte (FAIT)
+2. ⏭️ **ÉTAPE 2** : Connexion et stockage MongoDB
+3. ⏭️ **ÉTAPE 3** : Pipeline d'enrichissement
+4. ⏭️ **ÉTAPE 4** : ETL vers PostgreSQL
+5. ⏭️ **ÉTAPE 5** : API FastAPI
+6. ⏭️ **ÉTAPE 6** : Dashboard React
+7. ⏭️ **ÉTAPE 7** : Tests
+
+**Êtes-vous prêt pour l'ÉTAPE 2 (MongoDB) ?** 🚀

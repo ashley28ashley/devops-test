@@ -1,0 +1,246 @@
+import requests
+import json
+import time
+from datetime import datetime, timedelta
+import hashlib
+from typing import List, Dict
+
+class ParisEventCollector:
+    """Collecteur d'événements culturels de Paris"""
+    
+    def __init__(self):
+        # API officielle "Que Faire à Paris"
+        self.base_url = "https://opendata.paris.fr/api/records/1.0/search/"
+        self.dataset = "que-faire-a-paris-"
+        self.events = []
+        
+    def generate_hash(self, data: dict) -> str:
+        """Génère un hash unique pour éviter les doublons"""
+        data_str = json.dumps(data, sort_keys=True)
+        return hashlib.md5(data_str.encode()).hexdigest()
+    
+    def fetch_paris_events(self, max_events: int = 300) -> List[Dict]:
+        """
+        Récupère les événements depuis l'API Paris Open Data
+        
+        Args:
+            max_events: Nombre minimum d'événements à collecter
+            
+        Returns:
+            Liste des événements collectés
+        """
+        print(f"🗼 Collecte des événements de Paris...")
+        print(f"📊 Objectif: {max_events} événements minimum\n")
+        
+        collected = 0
+        start = 0
+        rows = 100  # Nombre d'événements par requête
+        errors = 0
+        
+        while collected < max_events:
+            try:
+                print(f"📄 Requête {start//rows + 1}...", end=" ")
+                
+                # Paramètres de la requête
+                params = {
+                    "dataset": "que-faire-a-paris-",
+                    "rows": rows,
+                    "start": start,
+                    "sort": "date_start"
+                }
+                
+                # Requête avec timeout
+                response = requests.get(
+                    self.base_url,
+                    params=params,
+                    timeout=15
+                )
+                
+                # Vérification du statut
+                if response.status_code != 200:
+                    print(f"❌ Erreur {response.status_code}")
+                    errors += 1
+                    if errors > 3:
+                        break
+                    time.sleep(2)
+                    continue
+                
+                data = response.json()
+                
+                # Extraction des événements
+                records = data.get("records", [])
+                
+                if not records:
+                    print("❌ Plus d'événements disponibles")
+                    break
+                
+                # Traitement de chaque événement
+                for record in records:
+                    # Extraction des champs pertinents
+                    fields = record.get("fields", {})
+                    
+                    # Structure normalisée avec métadonnées
+                    event_document = {
+                        "source": "paris_open_data",
+                        "fetched_at": datetime.utcnow().isoformat() + "Z",
+                        "raw_hash": self.generate_hash(fields),
+                        "payload": {
+                            "id": record.get("recordid"),
+                            "title": fields.get("title"),
+                            "description": fields.get("description"),
+                            "category": fields.get("category"),
+                            "tags": fields.get("tags", "").split(";") if fields.get("tags") else [],
+                            "address": {
+                                "street": fields.get("address_street"),
+                                "zipcode": fields.get("address_zipcode"),
+                                "city": fields.get("address_city", "Paris"),
+                                "name": fields.get("address_name")
+                            },
+                            "location": fields.get("lat_lon"),
+                            "dates": {
+                                "start": fields.get("date_start"),
+                                "end": fields.get("date_end"),
+                                "description": fields.get("date_description")
+                            },
+                            "contact": {
+                                "url": fields.get("contact_url"),
+                                "phone": fields.get("contact_phone"),
+                                "email": fields.get("contact_mail")
+                            },
+                            "price": {
+                                "type": fields.get("price_type"),
+                                "detail": fields.get("price_detail")
+                            },
+                            "accessibility": fields.get("access_type"),
+                            "audience": fields.get("audience")
+                        }
+                    }
+                    
+                    self.events.append(event_document)
+                    collected += 1
+                
+                print(f"✅ {len(records)} événements (Total: {collected})")
+                
+                # Pagination
+                start += rows
+                
+                # Respect de l'API (rate limiting)
+                time.sleep(0.3)
+                
+            except requests.exceptions.Timeout:
+                print(f"⏱️ Timeout")
+                errors += 1
+                if errors > 3:
+                    print("\n❌ Trop d'erreurs, arrêt de la collecte")
+                    break
+                time.sleep(2)
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"❌ Erreur réseau: {e}")
+                errors += 1
+                if errors > 3:
+                    break
+                time.sleep(2)
+                
+            except Exception as e:
+                print(f"❌ Erreur inattendue: {e}")
+                errors += 1
+                if errors > 3:
+                    break
+        
+        print(f"\n✨ Collecte terminée: {collected} événements")
+        print(f"⚠️ Erreurs rencontrées: {errors}")
+        
+        return self.events
+    
+    def save_to_json(self, filename: str = "events_raw.json"):
+        """Sauvegarde les événements dans un fichier JSON"""
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(self.events, f, ensure_ascii=False, indent=2)
+        print(f"💾 Données sauvegardées dans {filename}")
+        
+        # Sauvegarde d'un échantillon pour vérification
+        if self.events:
+            sample_file = "events_sample.json"
+            with open(sample_file, 'w', encoding='utf-8') as f:
+                json.dump(self.events[:5], f, ensure_ascii=False, indent=2)
+            print(f"📝 Échantillon sauvegardé dans {sample_file}")
+    
+    def get_summary(self) -> Dict:
+        """Retourne un résumé de la collecte"""
+        if not self.events:
+            return {"total": 0}
+        
+        # Extraction des catégories
+        categories = set()
+        for event in self.events:
+            cat = event["payload"].get("category")
+            if cat:
+                categories.add(cat)
+        
+        # Extraction des types de prix
+        price_types = set()
+        for event in self.events:
+            price = event["payload"].get("price", {}).get("type")
+            if price:
+                price_types.add(price)
+        
+        return {
+            "total_events": len(self.events),
+            "sources": list(set(e["source"] for e in self.events)),
+            "categories": list(categories),
+            "price_types": list(price_types),
+            "date_range": {
+                "first_fetch": min(e["fetched_at"] for e in self.events),
+                "last_fetch": max(e["fetched_at"] for e in self.events)
+            }
+        }
+
+
+def main():
+    """Point d'entrée principal"""
+    print("=" * 70)
+    print("🎪 COLLECTEUR D'ÉVÉNEMENTS CULTURELS - PARIS OPEN DATA")
+    print("=" * 70 + "\n")
+    
+    # Initialisation
+    collector = ParisEventCollector()
+    
+    # Collecte
+    events = collector.fetch_paris_events(max_events=300)
+    
+    # Vérification
+    if len(events) < 300:
+        print(f"\n⚠️ Seulement {len(events)} événements collectés")
+        print("💡 Vous pouvez relancer avec une date différente ou ajouter d'autres villes")
+    
+    # Sauvegarde
+    if events:
+        collector.save_to_json()
+        
+        # Résumé détaillé
+        print("\n" + "=" * 70)
+        print("📊 RÉSUMÉ DE LA COLLECTE")
+        print("=" * 70)
+        summary = collector.get_summary()
+        print(f"\n📈 Total: {summary['total_events']} événements")
+        print(f"🏢 Sources: {', '.join(summary['sources'])}")
+        print(f"\n🎭 Catégories trouvées ({len(summary['categories'])}):")
+        for cat in sorted(summary['categories'])[:10]:
+            print(f"   • {cat}")
+        if len(summary['categories']) > 10:
+            print(f"   ... et {len(summary['categories']) - 10} autres")
+        
+        print(f"\n💰 Types de prix:")
+        for price in summary['price_types']:
+            print(f"   • {price}")
+            
+    else:
+        print("\n❌ Aucun événement collecté")
+        print("💡 Vérifiez votre connexion internet")
+    
+    print("\n✅ Script terminé\n")
+
+
+if __name__ == "__main__":
+    main()
