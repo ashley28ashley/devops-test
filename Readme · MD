@@ -383,15 +383,14 @@ curl "http://localhost:8000/events?city=Paris&category=Musique&page=1&page_size=
 
 ## 👨‍💻 Auteur
 
-**Votre Nom**
-- Projet Bac+4 Développement
+**ASHLEY TAGNE**
 - Stack: Python, FastAPI, React, MongoDB, PostgreSQL
 
 ---
 
 ## 📝 Licence
 
-Ce projet est un projet éducatif réalisé dans le cadre d'une formation.
+Ce projet est un projet éducatif réalisé dans le cadre d'une formation Pour mieux apprendre et monter en compétence.
 
 ---
 
