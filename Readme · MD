@@ -25,6 +25,25 @@ Ce projet répond à la problématique suivante :
 
 > **Comment analyser l'offre culturelle d'un territoire pour comprendre les types d'événements, leur localisation et les périodes actives ?**
 
+
+# 📦 Livrables attendus
+
+Ce projet fournit l’ensemble des livrables demandés :
+
+| Livrable | Statut |
+|---------|--------|
+| Dépôt GitHub complet | ✔ |
+| README détaillé | ✔ |
+| Instructions d’installation | ✔ |
+| Description de l’architecture | ✔ |
+| Choix techniques | ✔ |
+| Limites du projet | ✔ |
+| Code source complet | ✔ |
+| Tests unitaires & intégration | ✔ 23 tests passés |
+| Schéma SQL (migration + fichier SQL) | ✔ `sql/schema.sql` |
+| Mini-produit data professionnel | ✔ |
+
+
 ### Données collectées
 - **Source** : Paris Open Data (data.gouv.fr)
 - **Volume** : 300+ événements culturels
@@ -55,8 +74,24 @@ PostgreSQL              ← Base relationnelle optimisée
     ↓
 FastAPI                 ← API REST
     ↓
-React Dashboard         ← Interface utilisateur
+React Dasboard         ← Interface utilisateur
+    ↓
 ```
+# 📁 Arborescence du projet
+
+```bash
+cultural-events-pipeline/
+│
+├── api/                 # API FastAPI
+├── enrichment/          # Enrichissement (géocodage, dates, catégories)
+├── etl/                 # ETL vers PostgreSQL
+├── frontend/            # Dashboard React
+├── scripts/             # Scripts utilitaires
+├── sql/                 # Schéma SQL + requêtes
+├── storage/             # Repositories MongoDB
+├── tests/               # Tests unitaires & intégration
+└── README.md
+
 
 ### Séparation des responsabilités
 
@@ -74,7 +109,7 @@ React Dashboard         ← Interface utilisateur
 ## 💻 Technologies
 
 ### Backend
-- **Python 3.11+** : Langage principal
+- **Python 3.13.8** : Langage principal
 - **FastAPI** : API REST moderne et performante
 - **SQLAlchemy** : ORM pour PostgreSQL
 - **PyMongo** : Client MongoDB officiel
@@ -84,7 +119,6 @@ React Dashboard         ← Interface utilisateur
 - **React 18** : Library UI
 - **TypeScript** : Typage statique
 - **Tailwind CSS** : Framework CSS utility-first
-- **Recharts** : Bibliothèque de graphiques
 
 ### Bases de données
 - **MongoDB 6+** : Stockage NoSQL (RAW + Enriched)
@@ -110,7 +144,7 @@ node --version    # 16+
 ### Étape 1 : Cloner le projet
 
 ```bash
-git clone <votre-repo>
+git clone https://github.com/ashley28ashley/devops-test
 cd cultural-events-pipeline
 ```
 
@@ -197,7 +231,7 @@ python enrichment/enrichment_pipeline.py
 
 #### 4. ETL vers PostgreSQL
 ```bash
-python etl/loader.py
+python -m etl/loader.py
 # Remplit: tables events, categories, cities
 ```
 
@@ -225,14 +259,22 @@ npm start
 
 ### Tests unitaires
 ```bash
-pytest tests/test_collectors.py
+pytest tests/test_date_processor.py
 pytest tests/test_enrichment.py
-pytest tests/test_etl.py
+pytest tests/test_etl_pipeline.py
+pytest tests/test_data_parsing.py
+pytest tests/test_transformer.py
+
+
 ```
 
 ### Tests d'intégration
 ```bash
-pytest tests/integration/
+pytest tests/test_api_integration.py
+```
+### Tests SQL
+```bash
+pytest tests/test_sql_queries.py
 ```
 
 ### Tests API
@@ -242,7 +284,7 @@ pytest tests/test_api.py
 
 ### Tous les tests
 ```bash
-pytest tests/ -v --cov
+pytest -m tests/ -v 
 ```
 
 ---
@@ -351,7 +393,7 @@ curl "http://localhost:8000/events?city=Paris&category=Musique&page=1&page_size=
   source: String,
   fetched_at: ISODate,
   raw_hash: String,
-  payload: Object // Donnée brute complète
+  payload: Object 
 }
 ```
 
