@@ -285,7 +285,7 @@ class PostgreSQLLoader:
         
         try:
             # Récupérer tous les événements enrichis
-            enriched_docs = list(self.mongo_client.enriched.find({"status": "success"}))
+            enriched_docs = list(self.mongo_client.enriched.find({}))
             total = len(enriched_docs)
             
             logger.info(f"📊 {total} événements enrichis à charger\n")

@@ -64,7 +64,7 @@ CREATE TABLE events (
     geocoded BOOLEAN DEFAULT FALSE,
     
     -- Dates et temps
-    event_date DATE NOT NULL,
+    event_date DATE,
     event_datetime TIMESTAMP,
     event_end_date DATE,
     year INTEGER,

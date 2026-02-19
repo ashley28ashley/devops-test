@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Concert test gratuit",
+    "date": "2026-04-18",
+    "zipcode": "75011",
+    "price_type": "gratuit",
+    "category": "Musique"
+  },
+  {
+    "title": "Exposition moderne",
+    "date": "2026-06-02",
+    "zipcode": "75005",
+    "price_type": "payant",
+    "category": "Exposition"
+  },
+  {
+    "title": "Théâtre classique",
+    "date": "2026-11-12",
+    "zipcode": "75019",
+    "price_type": "payant",
+    "category": "Théâtre"
+  },
+  {
+    "title": "Conférence IA",
+    "date": "2026-02-03",
+    "zipcode": "75003",
+    "price_type": "gratuit",
+    "category": "Conférence"
+  },
+  {
+    "title": "Danse contemporaine",
+    "date": "2026-07-21",
+    "zipcode": "75012",
+    "price_type": "payant",
+    "category": "Danse"
+  }
+]

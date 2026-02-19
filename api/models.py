@@ -25,7 +25,7 @@ class EventBase(BaseModel):
     """Événement minimal"""
     id: int
     title: str
-    event_date: date
+    event_date: Optional[date] = None
     arrondissement: Optional[str] = None
     is_free: bool = False
     

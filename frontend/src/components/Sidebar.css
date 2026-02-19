@@ -1,0 +1,38 @@
+.sidebar {
+  width: 220px;
+  height: 100vh;
+  background: var(--bg-card);
+  padding: 20px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  border-right: 1px solid #2a2f3a;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar a {
+  color: var(--text);
+  text-decoration: none;
+  padding: 10px 14px;
+  border-radius: 6px;
+  transition: 0.2s;
+  font-size: 15px;
+  background: transparent;
+}
+
+.sidebar a:hover {
+  background: #1f2632;
+}
+
+.sidebar a.active {
+  background: var(--accent);
+  color: white;
+}

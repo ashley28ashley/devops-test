@@ -1,0 +1,19 @@
+.stats-card {
+  background: #161b22;
+  padding: 20px;
+  border-radius: 10px;
+  color: #e6edf3;
+  border: 1px solid #1f2937;
+  text-align: center;
+  transition: 0.2s;
+}
+
+.stats-card:hover {
+  border-color: #4f7cff;
+}
+
+.stats-card p {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #4f7cff;
+}

@@ -1,4 +1,4 @@
-# scripts/init_db.py - VERSION AUTONOME ✅
+# scripts/init_db.py - VERSION SANS LIMITE & CORRIGÉE ✅
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 import os
@@ -33,18 +33,20 @@ def init_db():
         raw.create_index([("title", "text")])
         print("✅ Index: carte Paris + chrono + recherche")
         
-        # IMPORT paste.txt (5 événements TEST)
-        paste_path = os.path.join(os.path.dirname(__file__), '..', 'paste.txt')
+        # IMPORT paste.txt (TOUS les événements)
+        paste_path = os.path.join(os.path.dirname(__file__), "paste.txt")
+        print(f"DEBUG: Chemin recherché = {paste_path}")
+        
         if os.path.exists(paste_path):
+            print("📄 paste.txt trouvé ! Chargement...")
             with open(paste_path, 'r', encoding='utf-8') as f:
-                events = json.load(f)[:5]
-            
+                events = json.load(f)
+
+            # Importation SANS limite
             for event in events:
-                doc = event['payload']
-                doc['source'] = event['source']
-                raw.insert_one(doc)
-            
-            print(f"✅ {len(events)} événements importés (Nâdiya!)")
+                raw.insert_one(event)
+
+            print(f"✅ {len(events)} événements importés dans MongoDB")
         else:
             print("ℹ️ paste.txt non trouvé - OK pour test")
         
