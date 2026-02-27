@@ -272,10 +272,6 @@ pytest tests/test_transformer.py
 ```bash
 pytest tests/test_api_integration.py
 ```
-### Tests SQL
-```bash
-pytest tests/test_sql_queries.py
-```
 
 ### Tests API
 ```bash
